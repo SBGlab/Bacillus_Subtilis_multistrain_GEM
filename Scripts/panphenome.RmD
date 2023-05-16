@@ -1,0 +1,594 @@
+---
+title: "Bacillus Subtilis pan-phenome"
+output: html_notebook
+---
+
+Markdown for the Bacillus multistrain plots
+
+```{r}
+library(pheatmap)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(RColorBrewer)
+```
+
+# Loading presence-absence matrix from pangenome
+```{r}
+pangenome_file="Bacillus/gene_presence_absence.xlsx"
+pangenome=readxl::read_xlsx(pangenome_file,sheet = 2)
+
+```
+
+```{r}
+pangenome_matrix_df=pangenome[,c(1,8:18,20:ncol(pangenome))]%>%column_to_rownames(var="Gene")
+
+```
+# Set to 0 or 1 the presence/absence
+
+```{r}
+
+pangenome_matrix_df_tmp=pangenome_matrix_df%>%mutate_all(~replace(., is.na(.),0))%>%
+  mutate_all(~replace(., . != 0, 1))
+pangenome_matrix_df=as.data.frame(sapply(pangenome_matrix_df_tmp, as.numeric))
+row.names(pangenome_matrix_df)=row.names(pangenome_matrix_df_tmp)
+
+```
+
+```{r}
+
+a=pheatmap(pangenome_matrix_df,col=c("white","black"),scale = "none",cluster_cols = FALSE,show_colnames =FALSE)
+```
+```{r fig.width=8, fig.height=10000px}
+a
+```
+
+
+```{r fig.width=8, fig.height=10}
+library(ComplexHeatmap)
+m=as.matrix(t(pangenome_matrix_df))
+pangenome$core=ifelse((pangenome$`No. isolates`/185)>0.90,"Core","Accessory")
+
+my_annotation=pangenome%>%select(c("No. isolates","core"))
+my_annotation$rownames=pangenome$Gene
+my_annotation=my_annotation%>%column_to_rownames(var="rownames")%>%arrange(`No. isolates`)
+
+
+ha = HeatmapAnnotation(genes_frequency=anno_lines(my_annotation$`No. isolates`) ,core = my_annotation$core)
+
+ha = HeatmapAnnotation(genes_frequency=anno_lines(pangenome$`No. isolates`),core=ordered(pangenome$core,levels=c("Core","Accessory")),
+                       col = list(core=c("Core" = "#beaed4ff", "Accessory" = "#7fc97fff")),show_annotation_name = FALSE,border = TRUE)
+
+
+hr=rowAnnotation(genomeSize=colSums(pangenome_matrix_df))
+m2=m[,order(my_annotation$`No. isolates`)]
+
+gene_heatmap=Heatmap(m2, name = "Absence/presence", 
+        show_row_names = FALSE,cluster_column_slices = FALSE ,show_column_dend = FALSE,
+        column_split=ordered(pangenome$core,levels=c("Core","Accessory")),
+        show_column_names = FALSE,
+        column_title = "Genes",
+        row_title = "Bacillus subtilis strains", 
+        top_annotation = ha,
+        border=TRUE,
+        left_annotation = hr)
+
+```
+```{r}
+gene_heatmap
+```
+
+```{r fig.width=8, fig.height=10}
+library(ComplexHeatmap)
+m=as.matrix(t(pangenome_matrix_df))
+
+ha = HeatmapAnnotation(genes_frequency=pangenome$`No. isolates` ,core = anno_block(gp = gpar(fill = 2:7),labels=c("Accessory","Core")))
+
+hr=rowAnnotation(genomeSize=colSums(pangenome_matrix_df))
+
+
+gene_heatmap=Heatmap(m, name = "Absence/presence", 
+        show_row_names = FALSE,
+        show_column_names = FALSE,
+        column_title = "Genes",
+        row_title = "Bacillus subtilis strains", 
+        clustering_distance_columns = "binary",
+        top_annotation = ha,
+        left_annotation = hr,
+        column_km = 2 )
+
+```
+
+
+```{r}
+gene_heatmap
+
+```
+
+
+```{r fig.width=8, fig.height=10}
+pdf("gene_heatmap.pdf",width = 8,height = 10)
+gene_heatmap
+dev.off()
+
+```
+
+```{r fig.width=8, fig.height=10}
+library(ComplexHeatmap)
+m=as.matrix(pangenome_matrix_df)
+
+ha = HeatmapAnnotation(genes_frequency=pangenome$`No. isolates` ,core = anno_block(gp = gpar(fill = 2:4),labels=c("Core","Dispensable","Unique")))
+
+hr=rowAnnotation(genomeSize=colSums(pangenome_matrix_df))
+
+
+genes_heatmap=Heatmap(t(m), name = "Absence/presence", 
+        show_row_names = FALSE,
+        column_title = "Genes",
+        row_title = "Bacillus subtilis strains", 
+        clustering_distance_columns = "manhattan",
+        column_names_gp = grid::gpar(fontsize = 0.5),
+        column_km = 3 )
+```
+```{r fig.width=18, fig.height=10}
+genes_pheatmap=pheatmap::pheatmap(t(m))
+
+
+```
+
+```{r fig.width=18, fig.height=10}
+genes.clust <- cutree(genes_pheatmap$tree_col,k = 10)
+```
+
+```{r fig.width=18, fig.height=10}
+library(svglite)
+
+svg("pheatmap.svgz")
+genes_pheatmap
+dev.off()
+```
+```{r fig.width=8, fig.height=10}
+
+panphenome_file="Bacillus/sources_all.xlsx"
+panphenome=readxl::read_xlsx(panphenome_file,na="0")
+
+
+```
+
+```{r fig.width=8, fig.height=10}
+panphenome_matrix_df=panphenome[,2:(ncol(panphenome)-1)]
+
+panphenome_matrix_df=panphenome_matrix_df%>%mutate_all(~replace(., is.na(.),0))
+
+panphenome_matrix_df=as.data.frame(sapply(panphenome_matrix_df, as.numeric))
+
+```
+
+```{r fig.width=8, fig.height=10}
+
+pheatmap(t(panphenome_matrix_df))
+
+```
+
+```{r fig.width=8, fig.height=10}
+
+panphenome_growth_file="Bacillus/sources_growth.xlsx"
+panphenome_growth_file="Bacillus/sources_aerobic_growth.xlsx"
+
+panphenome_growth=readxl::read_xlsx(panphenome_growth_file)
+panphenome_growth$Growth=as.numeric(panphenome_growth$Growth)
+
+
+```
+
+```{r fig.width=8, fig.height=10}
+
+panphenome_growth_matrix=panphenome_growth%>%select(-c(Reaction,N_carbons))%>%
+  pivot_wider(names_from=Model,values_from=Growth)%>% 
+  replace(is.na(.), 0)%>%
+  mutate_all(~ifelse(.<0.025,0,.))%>%
+  select(where(~ !is.numeric(.) || sum(.)>0)) %>%# Filter the samples
+  column_to_rownames(var="Metabolite")
+
+
+```
+
+```{r}
+
+panphenome_growth_matrix2=panphenome_growth_matrix%>%
+  mutate_all(~ifelse(.>0.1,0.1,.))
+
+```
+
+```{r}
+carbon_sources=readxl::read_excel('Bacillus/Copia de tabla_crecimiento_BB.xlsx')
+```
+```{r}
+carbon_sources$`In silico`=ifelse(carbon_sources$`In silico`=='+',1,ifelse(carbon_sources$`In silico`=='-',0,NA))
+carbon_sources$`In vivo`=ifelse(carbon_sources$`In vivo`=='+',1,ifelse(carbon_sources$`In vivo`=='-',0,NA))
+iBB1018_table=as.matrix(carbon_sources[,c("In silico","In vivo")])
+rownames(iBB1018_table)=carbon_sources$Metabolite
+
+
+iBB1018_heatmap=Heatmap(iBB1018_table,
+        name="Aerobic Metabolism",
+        colorRampPalette(brewer.pal(n = 7, name ="Reds"))(100),
+        clustering_distance_rows = "binary",
+        show_column_names = FALSE)
+```
+
+
+```{r}
+iBB1018=readxl::read_excel("Bacillus/carbon_sources_iBB1018.xlsx")
+```
+
+```{r fig.width=4, fig.height=10}
+carbon_sources=readxl::read_excel('Bacillus/Tabla_crecimiento.xlsx')
+carbon_sources_aa_sugar=carbon_sources[carbon_sources$Metabolite!="phom",]
+carbon_sources_aa_sugar=carbon_sources_aa_sugar[1:52,]
+iBB1018_mat=as.matrix(carbon_sources_aa_sugar[,c("In vivo","In silico")])
+rownames(iBB1018_mat)=carbon_sources_aa_sugar$Name
+
+
+iBB1918_aerobic=Heatmap(iBB1018_mat,
+        name="Aerobic Metabolism",
+        col=c("lightgreen","coral"),
+        show_row_names = TRUE,row_names_side  = "left",
+        rect_gp = gpar(col = "black", lwd = 2))
+
+
+
+carbon_sources_other=carbon_sources[carbon_sources$Metabolite!="phom",]
+carbon_sources_other=carbon_sources_other[53:104,]
+iBB1018_mat=as.matrix(carbon_sources_other[,c("In vivo","In silico")])
+rownames(iBB1018_mat)=carbon_sources_other$Name
+
+
+iBB1918_aerobic_other=Heatmap(iBB1018_mat,
+        name="Aerobic Metabolism",
+        col=c("coral","lightgreen","grey"),
+        show_row_names = TRUE,row_names_side  = "right",
+        rect_gp = gpar(col = "black", lwd = 2))
+iBB1918_aerobic
+iBB1918_aerobic_other
+
+
+```
+```{r}
+pdf("fig_carbon.pdf",height=12, width=4)
+iBB1918_aerobic
+iBB1918_aerobic_other
+
+dev.off()
+```
+
+
+
+```{r fig.width=20, fig.height=20}
+
+
+panphenome_growth_matrix_filtered=panphenome_growth_matrix2%>%
+  select(-c(1))%>%filter(rowSums(.)>0.1)
+discared_c_sources=c("4hoxpac_e","skm_e","arab__D_e","glc__aD_e","malthx_e","dextrin_e","glyald_e","25dkglcn_e","2ddglcn_e","ala_L_glu__L_e","ala_gln_e","serglugly_e","glyglygln_e","ppoh_e","alaala_e","arbt_e","gthrd_e")
+
+mat=as.matrix(panphenome_growth_matrix_filtered)
+mat=subset(mat, !(rownames(mat) %in% discared_c_sources))
+rownames(mat)=sub('_e','',rownames(mat))
+
+
+
+
+#rownames(mat)=panphenome_growth_matrix$Metabolite
+heatmap_bacillus=pheatmap(mat,
+                          col=colorRampPalette(brewer.pal(n = 7, name ="Reds"))(100),
+                          clustering_distance_rows = "manhattan")
+
+```
+```{r}
+ write.table(as.data.frame(colSums(pangenome_matrix_metabolism_df)),file="genome_size.csv")
+
+```
+
+```{r}
+
+genome_size=readxl::read_excel("../panphenome/Bacillus/genome_sizes.xlsx")
+row.names(genome_size)=genome_size$Model
+genome_size=genome_size[colnames(mat[,1:149]),]
+```
+
+
+```{r fig.width=15, fig.height=20}
+library("ComplexHeatmap")
+mat2=mat
+rownames(mat2)=sub('_e$','',rownames(mat2))
+
+carbon_sources_tested=carbon_sources[carbon_sources$Metabolite%in%rownames(mat2),]
+annotation_row = data.frame(
+  Metabolite=carbon_sources_tested$Metabolite,
+    InVivo = carbon_sources_tested$`In vivo`)
+rownames(annotation_row)=carbon_sources_tested$Metabolite
+no_carbon=data.frame(Metabolite=rownames(mat[!rownames(mat)%in%carbon_sources$Metabolite,]),InVivo=NA)
+
+rownames(no_carbon)=rownames(mat[!rownames(mat)%in%carbon_sources$Metabolite,])
+annotation_row=rbind(annotation_row,no_carbon)
+annotation_row=annotation_row[rownames(mat),]
+rownames(annotation_row)=rownames(mat)
+pangenome_matrix_metabolism_df=pangenome_matrix_df
+colnames(pangenome_matrix_metabolism_df)=sub('.gb','',colnames(pangenome_matrix_metabolism_df))
+colnames(pangenome_matrix_metabolism_df)=sub('.1$','_1',colnames(pangenome_matrix_metabolism_df))
+colnames(pangenome_matrix_metabolism_df)=sub('.2$','_2',colnames(pangenome_matrix_metabolism_df))
+colnames(pangenome_matrix_metabolism_df)=sub('.3$','_3',colnames(pangenome_matrix_metabolism_df))
+
+pangenome_matrix_metabolism_df=pangenome_matrix_metabolism_df[,colnames(mat)[1:149]]
+
+column_ha=HeatmapAnnotation(genomeSize=genome_size$Genome_size,
+                            modelSize=genome_size$Model_size)
+
+row_ha=rowAnnotation(InVivo=annotation_row$InVivo)
+
+aerobic=Heatmap(mat[,1:149],
+        name="Aerobic Metabolism",
+        colorRampPalette(brewer.pal(n = 7, name ="Reds"))(100),
+        clustering_distance_rows = "manhattan",
+        right_annotation = row_ha,
+        top_annotation = column_ha,
+        show_column_names = FALSE)
+aerobic
+
+```
+
+```{r}
+aerobic_names=Heatmap(mat[,1:149],
+        name="Aerobic Metabolism",
+        colorRampPalette(brewer.pal(n = 7, name ="Reds"))(100),
+        clustering_distance_rows = "manhattan",
+        right_annotation = row_ha,
+        top_annotation = column_ha,
+        show_column_names = TRUE)
+aerobic_names
+```
+```{r}
+pdf("aerobic_names.pdf",height = 17,width = 25)
+aerobic_names
+dev.off()
+
+```
+
+
+```{r}
+pdf("aerobic.pdf",height = 17,width = 15)
+aerobic
+dev.off()
+```
+
+
+```{r fig.width=20, fig.height=20}
+pdf("aerobic_growth_bacillus.pdf")
+heatmap_bacillus
+dev.off()
+
+```
+
+
+
+```{r fig.width=8, fig.height=10}
+
+panphenome_anaerobic_growth_file="Bacillus/sources_anaerobic_growth2.xlsx"
+panphenome_anaerobic_growth_file="Bacillus/carbon_sources_anaerobic_normalized.xlsx"
+
+panphenome_anaerobic_growth=readxl::read_xlsx(panphenome_anaerobic_growth_file)
+panphenome_anaerobic_growth$Growth=as.numeric(panphenome_anaerobic_growth$Growth)
+
+
+```
+
+```{r fig.width=8, fig.height=10}
+
+discared_c_sources=c("arab__D_e","glc__aD_e","glyald_e","25dkglcn_e","2ddglcn_e","ala_L_glu__L_e","ala_gln_e","serglugly_e","glyglygln_e","ppoh_e","alaala_e","arbt_e","gthrd_e")
+
+
+
+panphenome_anaerobic_growth_matrix=panphenome_anaerobic_growth%>%
+  select(-c(Reaction,N_carbons))%>%
+  pivot_wider(names_from=Model,values_from=Growth)%>% 
+  replace(is.na(.), 0)%>%
+  select(where(~ !is.numeric(.) || sum(.)>0)) %>%# Filter the samples
+  column_to_rownames(var="Metabolite")
+
+panphenome_anaerobic_growth_matrix=panphenome_anaerobic_growth_matrix%>%mutate_all(~ifelse(.==0.005992653,max(.),.))
+
+
+```
+
+```{r fig.width=10, fig.height=20}
+panphenome_anaerobic_growth_matrix_filered=panphenome_anaerobic_growth_matrix%>%
+  select(-c(1))%>%filter(rowSums(.)>0.1)
+                                  
+mat_anaerobic=as.matrix(panphenome_anaerobic_growth_matrix_filered)
+mat=subset(mat_anaerobic, !(rownames(mat_anaerobic) %in% discared_c_sources))
+
+#rownames(mat)=panphenome_growth_matrix$Metabolite
+heatmap_anaerobic_bacillus=pheatmap(mat,colorRampPalette(brewer.pal(n = 7, name ="Blues"))(100),clustering_distance_rows = "manhattan")
+
+
+```
+```{r}
+library("ComplexHeatmap")
+mat2=mat
+rownames(mat2)=sub('_e$','',rownames(mat2))
+
+carbon_sources_tested=carbon_sources[carbon_sources$Metabolite%in%rownames(mat2),]
+annotation_row = data.frame(
+  Metabolite=carbon_sources_tested$Metabolite,
+    InVivo = carbon_sources_tested$`In vivo`)
+rownames(annotation_row)=carbon_sources_tested$Metabolite
+no_carbon=data.frame(Metabolite=rownames(mat[!rownames(mat)%in%carbon_sources$Metabolite,]),InVivo=NA)
+
+rownames(no_carbon)=rownames(mat[!rownames(mat)%in%carbon_sources$Metabolite,])
+annotation_row=rbind(annotation_row,no_carbon)
+annotation_row=annotation_row[rownames(mat),]
+rownames(annotation_row)=rownames(mat)
+pangenome_matrix_metabolism_df=pangenome_matrix_df
+colnames(pangenome_matrix_metabolism_df)=sub('.gb','',colnames(pangenome_matrix_metabolism_df))
+colnames(pangenome_matrix_metabolism_df)=sub('.1$','_1',colnames(pangenome_matrix_metabolism_df))
+colnames(pangenome_matrix_metabolism_df)=sub('.2$','_2',colnames(pangenome_matrix_metabolism_df))
+colnames(pangenome_matrix_metabolism_df)=sub('.3$','_3',colnames(pangenome_matrix_metabolism_df))
+
+pangenome_matrix_metabolism_df=pangenome_matrix_metabolism_df[,colnames(mat)[1:149]]
+
+column_ha=HeatmapAnnotation(genomeSize=colSums(pangenome_matrix_metabolism_df))
+
+template_sources=readxl::read_excel("Bacillus/anaerobic_sources.xlsx")
+
+annotation_row$template=sapply(annotation_row$Metabolite,function(x){ifelse(x%in%template_sources$sources,template_sources[template_sources$sources==x,"names"],"NO")})
+rownames(annotation_row)=sub('_e$','',rownames(annotation_row))
+
+
+rownames(mat)=sub('_e$','',rownames(mat))
+mat_filtered=mat[row.names(annotation_row[annotation_row$template!="NO",]),1:149]
+mat_filtered[mat_filtered>0.005992653 & mat_filtered<0.005992654]=0.07
+
+```
+```{r}
+anaerobic=Heatmap(mat_filtered,
+        name="Anaerobic Metabolism",
+        colorRampPalette(brewer.pal(n = 7, name ="Blues"))(100),
+        clustering_distance_rows = "euclidean",
+        top_annotation = column_ha,
+        show_column_names = FALSE,row_labels = annotation_row[annotation_row$template!="NO","template"])
+anaerobic
+
+```
+
+
+```{r }
+
+pdf("anaerobic.pdf")
+anaerobic
+dev.off()
+
+
+```
+
+## Figura del corte de panphenome
+
+```{r }
+
+reactions=readxl::read_excel("Bacillus/model_reactions.xlsx",sheet="Raw")
+
+
+```
+
+
+```{r }
+library(ggplot2)
+library(ggpubr)
+reactions %>% 
+  count(Reaction) %>%
+  group_by(Reaction)%>%
+  arrange(desc(n))%>%rownames_to_column(var="Position")%>%
+  mutate(Position=as.numeric(Position))%>%
+  mutate(Core=ifelse(n>135,"Core","Accessory"))%>%
+  ggplot(aes(x=Position,y=n,fill=Core))+
+  geom_area(alpha=0.6,size=1,colour="black")+
+  geom_vline(xintercept = 1720, color="dark red",size=1.5)+
+  ylab("# Strains")+
+  xlab("# Reactions")+
+  ggtitle("Panphenome reaction frequency")+
+  scale_fill_brewer(palette="Accent")+
+  theme_pubr()
+
+
+```
+```{r }
+ggsave("reaction_plot.pdf",width = 7, height = 5)
+
+```
+
+```{r}
+library(ggpubr)
+datos_new_proteins=readxl::read_excel("Bacillus/top._new_proteins.xlsx")
+
+
+p=ggbarplot(datos_new_proteins, x = "Protein", y = "B. subtilis frequency",
+           # Set bar border colors to white
+          fill="Reaction associated",
+          palette = "jco",            # jco journal color palett. see ?ggpar
+          sort.val = "desc",          # Sort the value in descending order
+          sort.by.groups = FALSE,     # Don't sort inside each group
+          x.text.angle = 90,          # Rotate vertically x axis texts
+          ylab = "Frequency",
+          legend.title = "Multi-strain GEM presence",
+          rotate = TRUE
+          )
+ggpar(p,legend="top")
+
+```
+```{r}
+ggsave("Fig7A.pdf",width = 9)
+```
+
+
+```{r fig.width=10}
+library(ggpubr)
+datos_new_proteins=readxl::read_excel("Bacillus/top._missing_proteins.xlsx")
+
+
+p=ggbarplot(datos_new_proteins, x = "Gene", y = "Frequency",
+           # Set bar border colors to white
+          fill="coral",
+          palette = "jco",            # jco journal color palett. see ?ggpar
+          sort.val = "desc",          # Sort the value in descending order
+          sort.by.groups = FALSE,     # Don't sort inside each group
+          x.text.angle = 90,          # Rotate vertically x axis texts
+          ylab = "Frequency",
+          rotate = TRUE
+          )
+ggpar(p,legend="top")
+
+```
+
+```{r}
+ggsave("Fig7B.pdf",width = 12)
+```
+
+```{r}
+
+library("clusterProfiler")
+genes=c("BSU29380",
+"BSU29350",
+"BSU29340",
+"BSU29360",
+"BSU17170",
+"BSU17090",
+"BSU21820",
+"BSU29300",
+"BSU29290",
+"BSU26860",
+"BSU25780",
+"BSU25790",
+"BSU35750",
+"BSU35620",
+"BSU20500",
+"BSU35720",
+"BSU35760",
+"BSU35730",
+"BSU35680",
+"BSU39920",
+"BSU05070",
+"BSU06060",
+"BSU21410",
+"BSU40120"
+)
+result <- enrichKEGG(gene=genes,
+                          organism="bsu",
+                          minGSSize = 1,
+                          pvalueCutoff =1,
+                          qvalueCutoff = 1)
+a=aheatplot(result) 
+
+
+
+
+```
+
